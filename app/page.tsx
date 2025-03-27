@@ -97,7 +97,7 @@ export default function ImageToPDFConverter() {
         }
 
         // Convert to data URL
-        resolve(canvas.toDataURL("image/png", 0.8))
+        resolve(canvas.toDataURL("image/jpeg", 0.8))
       }
       img.src = dataUrl
     })
@@ -144,7 +144,7 @@ export default function ImageToPDFConverter() {
         const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
 
         // Embed the image in the PDF
-        const image = await pdfDoc.embedPng(imageBytes)
+        const image = await pdfDoc.embedJpg(imageBytes)
 
         // Add a new page with appropriate dimensions
         const { width, height } = image.scale(1)
