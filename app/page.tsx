@@ -1,17 +1,35 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useDropzone } from "react-dropzone"
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Upload, FileImage, FileCheck, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ImageToPDFConverter() {
   const [files, setFiles] = useState<File[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [watermarkText, setWatermarkText] = useState("")
+  const [imageQuality, setImageQuality] = useState("0.8")
+
+  // Load watermark text from localStorage on initial render
+  useEffect(() => {
+    const savedWatermark = localStorage.getItem("watermarkText")
+    setWatermarkText(savedWatermark || "Do Not Copy")
+  }, [])
+
+  // Save watermark text to localStorage whenever it changes
+  useEffect(() => {
+    if (watermarkText) {
+      localStorage.setItem("watermarkText", watermarkText)
+    }
+  }, [watermarkText])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -61,14 +79,14 @@ export default function ImageToPDFConverter() {
         ctx?.drawImage(img, 0, 0, width, height)
 
         // Convert to data URL
-        resolve(canvas.toDataURL("image/jpeg", 0.8))
+        resolve(canvas.toDataURL("image/jpeg", Number.parseFloat(imageQuality)))
       }
       img.src = dataUrl
     })
   }
 
   // Function to add watermark to image
-  const addWatermark = (dataUrl: string, watermarkText: string): Promise<string> => {
+  const addWatermark = (dataUrl: string, text: string): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image()
       img.crossOrigin = "anonymous"
@@ -85,7 +103,7 @@ export default function ImageToPDFConverter() {
         if (ctx) {
           // Calculate font size based on image width
           // Make it large enough to span across the image horizontally
-          const fontSize = Math.floor((img.width / watermarkText.length) * 1.6)
+          const fontSize = Math.floor((img.width / text.length) * 1.6)
 
           ctx.font = `bold ${fontSize}px Arial`
           ctx.fillStyle = "rgba(200, 200, 200, 0.5)"
@@ -93,11 +111,11 @@ export default function ImageToPDFConverter() {
           ctx.textBaseline = "middle"
 
           // Draw text in the center of the image (horizontally)
-          ctx.fillText(watermarkText, img.width / 2, img.height / 2)
+          ctx.fillText(text, img.width / 2, img.height / 2)
         }
 
         // Convert to data URL
-        resolve(canvas.toDataURL("image/jpeg", 0.8))
+        resolve(canvas.toDataURL("image/jpeg", Number.parseFloat(imageQuality)))
       }
       img.src = dataUrl
     })
@@ -137,7 +155,7 @@ export default function ImageToPDFConverter() {
         const resizedDataUrl = await resizeImage(dataUrl)
 
         // Add watermark
-        const watermarkedDataUrl = await addWatermark(resizedDataUrl, "Cleide Fotos")
+        const watermarkedDataUrl = await addWatermark(resizedDataUrl, watermarkText)
 
         // Convert data URL to Uint8Array for pdf-lib
         const base64Data = watermarkedDataUrl.split(",")[1]
@@ -189,6 +207,8 @@ export default function ImageToPDFConverter() {
       console.error("Error generating PDF:", error)
     } finally {
       setIsGenerating(false)
+      // Clear the selected images after download
+      setFiles([])
     }
   }
 
@@ -199,10 +219,37 @@ export default function ImageToPDFConverter() {
           <CardTitle className="text-2xl">Image to PDF Converter</CardTitle>
           <CardDescription>
             Upload multiple images to generate a PDF with each image on a separate page. Each page will include the
-            image filename as a title and a "Cleide Fotos" watermark.
+            image filename as a title and a watermark.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="watermark">Watermark Text</Label>
+              <Input
+                id="watermark"
+                value={watermarkText}
+                onChange={(e) => setWatermarkText(e.target.value)}
+                placeholder="Enter watermark text"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quality">Image Quality</Label>
+              <Select value={imageQuality} onValueChange={setImageQuality}>
+                <SelectTrigger id="quality">
+                  <SelectValue placeholder="Select quality" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1.0">Original (100%)</SelectItem>
+                  <SelectItem value="0.9">High (90%)</SelectItem>
+                  <SelectItem value="0.8">Medium (80%)</SelectItem>
+                  <SelectItem value="0.6">Low (60%)</SelectItem>
+                  <SelectItem value="0.4">Very Low (40%)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div
             {...getRootProps()}
             className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
