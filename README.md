@@ -62,66 +62,16 @@ yarn dev
 1. **Set Watermark Text**: Enter your desired watermark text in the input field (defaults to "Do Not Copy")
 2. **Select Image Quality**: Choose the quality level from the dropdown menu:
 
-1. Original (100%)
-2. High (90%)
-3. Medium (80%)
-4. Low (60%)
-5. Very Low (40%)
+    a. Original (100%)
 
+    b. High (90%)
 
+    c. Medium (80%)
+
+    d. Low (60%)
+
+    e. Very Low (40%)
 
 3. **Upload Images**: Drag and drop images onto the upload area or click to select files
 4. **Generate PDF**: Click the "Generate PDF" button to create and download the PDF
 5. **Start Over**: After downloading, the image list will be automatically cleared for a new batch
-
-
-## Building for Production
-
-To create an optimized production build:
-
-```shellscript
-npm run build
-# or
-yarn build
-```
-
-Then start the production server:
-
-```shellscript
-npm start
-# or
-yarn start
-```
-
-## Customization
-
-### Modifying the PDF Layout
-
-To change the PDF layout, edit the `handleGeneratePDF` function in `app/page.tsx`. You can adjust:
-
-- Page margins
-- Image positioning
-- Title font size and position
-- Watermark appearance
-
-
-### Adding New Features
-
-The modular structure makes it easy to add new features:
-
-- Additional image processing options
-- PDF metadata
-- Custom page sizes
-- Multiple watermark styles
-
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgements
-
-- [pdf-lib](https://github.com/Hopding/pdf-lib) for PDF generation
-- [react-dropzone](https://github.com/react-dropzone/react-dropzone) for file upload functionality
-- [shadcn/ui](https://ui.shadcn.com/) for the UI components
-- [Next.js](https://nextjs.org/) for the React framework
