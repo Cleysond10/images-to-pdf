@@ -18,13 +18,11 @@ export default function ImageToPDFConverter() {
   const [watermarkText, setWatermarkText] = useState("")
   const [imageQuality, setImageQuality] = useState("0.8")
 
-  // Load watermark text from localStorage on initial render
   useEffect(() => {
     const savedWatermark = localStorage.getItem("watermarkText")
     setWatermarkText(savedWatermark || "Do Not Copy")
   }, [])
 
-  // Save watermark text to localStorage whenever it changes
   useEffect(() => {
     if (watermarkText) {
       localStorage.setItem("watermarkText", watermarkText)
@@ -45,7 +43,6 @@ export default function ImageToPDFConverter() {
     setFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  // Function to convert image file to data URL
   const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
@@ -55,13 +52,11 @@ export default function ImageToPDFConverter() {
     })
   }
 
-  // Function to resize image using Canvas
   const resizeImage = (dataUrl: string, maxWidth = 1600, maxHeight = 1200): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image()
       img.crossOrigin = "anonymous"
       img.onload = () => {
-        // Calculate new dimensions
         let width = img.width
         let height = img.height
 
@@ -71,21 +66,18 @@ export default function ImageToPDFConverter() {
           height = height * ratio
         }
 
-        // Create canvas and draw resized image
         const canvas = document.createElement("canvas")
         canvas.width = width
         canvas.height = height
         const ctx = canvas.getContext("2d")
         ctx?.drawImage(img, 0, 0, width, height)
 
-        // Convert to data URL
         resolve(canvas.toDataURL("image/jpeg", Number.parseFloat(imageQuality)))
       }
       img.src = dataUrl
     })
   }
 
-  // Function to add watermark to image
   const addWatermark = (dataUrl: string, text: string): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image()
@@ -96,13 +88,9 @@ export default function ImageToPDFConverter() {
         canvas.height = img.height
         const ctx = canvas.getContext("2d")
 
-        // Draw original image
         ctx?.drawImage(img, 0, 0)
 
-        // Add watermark
         if (ctx) {
-          // Calculate font size based on image width
-          // Make it large enough to span across the image horizontally
           const fontSize = Math.floor((img.width / text.length) * 1.6)
 
           ctx.font = `bold ${fontSize}px Arial`
@@ -110,18 +98,15 @@ export default function ImageToPDFConverter() {
           ctx.textAlign = "center"
           ctx.textBaseline = "middle"
 
-          // Draw text in the center of the image (horizontally)
           ctx.fillText(text, img.width / 2, img.height / 2)
         }
 
-        // Convert to data URL
         resolve(canvas.toDataURL("image/jpeg", Number.parseFloat(imageQuality)))
       }
       img.src = dataUrl
     })
   }
 
-  // Function to remove file extension from filename
   const removeFileExtension = (filename: string): string => {
     const lastDotIndex = filename.lastIndexOf(".")
     if (lastDotIndex === -1) return filename
@@ -135,65 +120,51 @@ export default function ImageToPDFConverter() {
     setProgress(0)
 
     try {
-      // Create a new PDF document
       const pdfDoc = await PDFDocument.create()
 
-      // Get the default font
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
 
-      // Process each file
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
 
-        // Update progress
         setProgress((i / files.length) * 90)
 
-        // Convert file to data URL
         const dataUrl = await fileToDataUrl(file)
 
-        // Resize image
         const resizedDataUrl = await resizeImage(dataUrl)
 
-        // Add watermark
         const watermarkedDataUrl = await addWatermark(resizedDataUrl, watermarkText)
 
-        // Convert data URL to Uint8Array for pdf-lib
         const base64Data = watermarkedDataUrl.split(",")[1]
         const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
 
-        // Embed the image in the PDF
         const image = await pdfDoc.embedJpg(imageBytes)
 
-        // Add a new page with appropriate dimensions
         const { width, height } = image.scale(1)
         const page = pdfDoc.addPage([width + 100, height + 150])
 
-        // Draw the image
         page.drawImage(image, {
           x: 50,
-          y: 100, // Position higher to leave space for filename at bottom
+          y: 100,
           width,
           height,
         })
 
-        // Add the filename as title (without extension)
         const fileName = removeFileExtension(file.name)
         const titleFontSize = 28
         const titleWidth = font.widthOfTextAtSize(fileName, titleFontSize)
         page.drawText(fileName, {
           x: (page.getWidth() - titleWidth) / 2,
-          y: 50, // Position at bottom of page
+          y: 50,
           size: titleFontSize,
           font,
           color: rgb(0, 0, 0),
         })
       }
 
-      // Save the PDF
       const pdfBytes = await pdfDoc.save()
       setProgress(100)
 
-      // Create download link
       const blob = new Blob([pdfBytes], { type: "application/pdf" })
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
@@ -207,7 +178,6 @@ export default function ImageToPDFConverter() {
       console.error("Error generating PDF:", error)
     } finally {
       setIsGenerating(false)
-      // Clear the selected images after download
       setFiles([])
     }
   }
@@ -216,7 +186,7 @@ export default function ImageToPDFConverter() {
     <div className="container mx-auto py-10 px-4">
       <Card className="w-full max-w-3xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl">Image to PDF Converter</CardTitle>
+          <CardTitle className="text-2xl">Images to PDF Converter</CardTitle>
           <CardDescription>
             Upload multiple images to generate a PDF with each image on a separate page. Each page will include the
             image filename as a title and a watermark.

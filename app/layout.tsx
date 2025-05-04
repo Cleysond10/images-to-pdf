@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'AFAD Generator',
+  title: 'Images to PDF',
   description: 'Upload images to generate a PDF file with watermark.',
 }
 
