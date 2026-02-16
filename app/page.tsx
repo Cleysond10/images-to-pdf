@@ -6,17 +6,19 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Upload, FileImage, FileCheck, Loader2 } from "lucide-react"
+import { Upload, FileImage, FileCheck, Loader2, Grid3x3, List } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ImageToPDFConverter() {
   const [files, setFiles] = useState<File[]>([])
+  const [previews, setPreviews] = useState<{ [key: number]: string }>({})
   const [isGenerating, setIsGenerating] = useState(false)
   const [progress, setProgress] = useState(0)
   const [watermarkText, setWatermarkText] = useState("")
   const [imageQuality, setImageQuality] = useState("0.8")
+  const [viewMode, setViewMode] = useState<"gallery" | "list">("gallery")
 
   useEffect(() => {
     const savedWatermark = localStorage.getItem("watermarkText")
@@ -36,11 +38,42 @@ export default function ImageToPDFConverter() {
     },
     onDrop: (acceptedFiles) => {
       setFiles((prev) => [...prev, ...acceptedFiles])
+      // Generate previews for new files
+      acceptedFiles.forEach((file, index) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const result = e.target?.result as string
+          setPreviews((prev) => {
+            const newIndex = files.length + index
+            return { ...prev, [newIndex]: result }
+          })
+        }
+        reader.readAsDataURL(file)
+      })
     },
   })
 
   const handleRemoveFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index))
+    setPreviews((prev) => {
+      const newPreviews = { ...prev }
+      delete newPreviews[index]
+      // Reindex previews after removal
+      const reindexed: { [key: number]: string } = {}
+      let newIndex = 0
+      for (let i = 0; i < files.length; i++) {
+        if (i !== index && newPreviews[i]) {
+          reindexed[newIndex] = newPreviews[i]
+          newIndex++
+        }
+      }
+      return reindexed
+    })
+  }
+
+  const truncateFilename = (filename: string, maxLength: number = 50): string => {
+    if (filename.length <= maxLength) return filename
+    return filename.substring(0, maxLength) + "..."
   }
 
   const fileToDataUrl = (file: File): Promise<string> => {
@@ -165,7 +198,7 @@ export default function ImageToPDFConverter() {
       const pdfBytes = await pdfDoc.save()
       setProgress(100)
 
-      const blob = new Blob([pdfBytes], { type: "application/pdf" })
+      const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" })
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
@@ -236,26 +269,94 @@ export default function ImageToPDFConverter() {
 
           {files.length > 0 && (
             <div className="space-y-4">
-              <h3 className="font-medium">Selected Images ({files.length})</h3>
-              <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
-                {files.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-md">
-                    <div className="flex items-center space-x-3">
-                      <FileImage className="w-5 h-5 text-primary" />
-                      <div className="truncate max-w-[200px] sm:max-w-[400px]">{file.name}</div>
-                      <div className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveFile(index)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">Selected Images ({files.length})</h3>
+                <div className="flex gap-2">
+                  <Button
+                    variant={viewMode === "gallery" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setViewMode("gallery")}
+                    title="Gallery view"
+                  >
+                    <Grid3x3 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    title="List view"
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
+
+              {viewMode === "gallery" ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[800px] overflow-y-auto pr-2">
+                  {files.map((file, index) => (
+                    <div key={index} className="relative group">
+                      <div className="relative overflow-hidden rounded-lg bg-muted aspect-square border border-muted-foreground/25">
+                        {previews[index] && (
+                          <img
+                            src={previews[index]}
+                            alt={file.name}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
+                      <div className="mt-2 truncate">
+                        <p className="text-xs font-medium truncate" title={file.name}>
+                          {truncateFilename(file.name)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRemoveFile(index)}
+                        className="absolute top-1 right-1 h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove image"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="max-h-[800px] overflow-y-auto space-y-2 pr-2">
+                  {files.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-md">
+                      <div className="flex items-center space-x-3 flex-1">
+                        {previews[index] && (
+                          <img
+                            src={previews[index]}
+                            alt={file.name}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate" title={file.name}>
+                            {truncateFilename(file.name)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveFile(index)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
